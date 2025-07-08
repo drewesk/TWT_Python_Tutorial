@@ -10,6 +10,10 @@ st.set_page_config(page_title="AE Finance App", page_icon="💰", layout="wide")
 def load_transactions(file):
     try:
         df = pd.read_csv(file)
+        df.columns = [col.strip() for col in df.columns]
+        df["Amount"] = df["Amount"].str.replace(",", "").astype(float)
+        df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y")
+        
         st.write(df)
         return df
     except Exception as e:
@@ -25,4 +29,3 @@ def main():
         df = load_transactions(uploaded_file)
         
 main()
-    
