@@ -8,7 +8,13 @@ import os
 st.set_page_config(page_title="AE Finance App", page_icon="💰", layout="wide")
 
 def load_transactions(file):
-    pass
+    try:
+        df = pd.read_csv(file)
+        st.write(df)
+        return df
+    except Exception as e:
+        st.error(f"Error processing the file: {str(e)}")
+        return None
 
 def main():
     st.title("AE Finance Dashboard")
