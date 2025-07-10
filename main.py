@@ -36,7 +36,7 @@ def categorize_transactions(df):
             if details in lowered_keywords:
                 df.at[idx, "Category"] = category 
                 
-        return df 
+    return df 
 
 def load_transactions(file):
     try:
@@ -108,11 +108,37 @@ def main():
                         if new_category == st.session_state.debits_df.at[idx, "Category"]:
                             continue
                     
-                    details = row["Details"]
-                    st.session_state.debits_df.at[idx, "Category"] = new_category
-                    add_keyword_to_category(new_category, details)
+                        details = row["Details"]
+                        st.session_state.debits_df.at[idx, "Category"] = new_category
+                        add_keyword_to_category(new_category, details)
+                    
+                st.subheader('Expense Summary')
+                category_totals = st.session_state.debits_df.groupby("Category")["Amount"].sum().reset_index()
+                category_totals = category_totals.sort_values("Amount", ascending=False)
                 
+                st.dataframe(
+                    category_totals, 
+                    column_config={
+                        "Amount": st.column_config.NumberColumn("Amount", format="%.2f USD")
+                    },
+                    
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                fig = px.pie(
+                    category_totals,
+                    values="Amount",
+                    names="Category",
+                    title="Expenses by Category"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                 
             with tab2:
+                st.subheader("Payment Summary")
+                total_payments = credits_df["Amount"].sum()
+                st.metric("Total Payments", f"{total_payments:,.2f} USD")
                 st.write(credits_df)
         
 main()
