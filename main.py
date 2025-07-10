@@ -7,10 +7,36 @@ import os
 
 st.set_page_config(page_title="AE Finance App", page_icon="💰", layout="wide")
 
+c_file = "categories.json"
+
 if "categories" not in st.session_state:
     st.session_state.categories = {
         "Uncategorized": []
     }
+    
+if os.path.exists(c_file):
+    with open(c_file, "r") as f:
+        st.session_state.categories = json.load(f)
+        
+def save_categories():
+    with open(c_file, "w") as f:
+        json.dump(st.session_state.categories, f)
+        
+def categorize_transactions(df):
+    df["Category"] = "Uncategorized"
+    
+    for category, keywords in st.session_state.categories.items():
+        if category == "Uncategorized" or not keywords:
+            continue
+        
+        lowered_keywords = [keyword.lower().strip() for keyword in keywords]
+        
+        for idx, row in df.iterrows():
+            details = row["Details"].lower().strip()
+            if details in lowered_keywords:
+                df.at[idx, "Category"] = category 
+                
+        return df 
 
 def load_transactions(file):
     try:
@@ -19,10 +45,19 @@ def load_transactions(file):
         df["Amount"] = df["Amount"].str.replace(",", "").astype(float)
         df["Date"] = pd.to_datetime(df["Date"], format="%d %b %Y")
         
-        return df
+        return categorize_transactions(df)
     except Exception as e:
         st.error(f"Error processing the file: {str(e)}")
         return None
+
+def add_keyword_to_category(category, keyword):
+    keyword = keyword.strip()
+    if keyword and keyword not in st.session_state.categories[category]:
+        st.session_state.categories[category].append(keyword)
+        save_categories()
+        return True
+    
+    return False
 
 def main():
     st.title("AE Finance Dashboard")
@@ -36,9 +71,39 @@ def main():
             debits_df = df[df["Debit/Credit"] == "Debit"].copy()
             credits_df = df[df["Debit/Credit"] == "Credit"].copy()
             
+            st.session_state.debits_df = debits_df.copy()
+            
             tab1, tab2 = st.tabs(["Expenses (Debits)", "Payments (Credits)"])
             with tab1:
-                st.write(debits_df)
+                new_category = st.text_input("New Section Name")
+                add_button = st.button("add Section")
+                
+                if add_button and new_category:
+                    if new_category not in st.session_state.categories:
+                        st.session_state.categories[new_category] = []
+                        save_categories()
+                        st.rerun()
+                        
+                st.subheader("Your Expenses")
+                edited_df = st.data_editor(
+                    st.session_state.debits_df[["Date", "Details", "Amount", "Category"]],
+                    column_config={
+                        "Date": st.column_config.DateColumn("Date", format="DD/MM/YYYY"),
+                        "Amount": st.column_config.NumberColumn("Amount", format="%.2f AED"),
+                        "Category": st.column_config.SelectboxColumn(
+                            "Category",
+                            options=list(st.session_state.categories.keys())
+                        )
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                    key="category_editor"
+                )
+                    
+                save_button = st.button("Apply Changes", type= "primary")
+                if save_button:
+                    pass
+                
                 
             with tab2:
                 st.write(credits_df)
